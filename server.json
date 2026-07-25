@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "vote.andre/elections",
+  "title": "André — Analyse électorale française",
+  "description": "Résultats des élections françaises 1999-2026 par bureau de vote, socio-démo INSEE et cartes.",
+  "version": "1.28.1",
+  "websiteUrl": "https://andre.vote",
+  "icons": [
+    {
+      "src": "https://andre.vote/icon-512.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "512x512"
+      ]
+    },
+    {
+      "src": "https://andre.vote/icon-192.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "192x192"
+      ]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.andre.vote/mcp"
+    }
+  ]
+}
