@@ -5,6 +5,10 @@
   "description": "Résultats des élections françaises 1999-2026 par bureau de vote, socio-démo INSEE et cartes.",
   "version": "1.28.1",
   "websiteUrl": "https://andre.vote",
+  "repository": {
+    "url": "https://github.com/joelgombin/andre-mcp",
+    "source": "github"
+  },
   "icons": [
     {
       "src": "https://andre.vote/icon-512.png",
