@@ -8,10 +8,10 @@ découpages administratifs officiels.
 **Serveur hébergé, prêt à l'emploi :** `https://mcp.andre.vote/mcp`
 Aucune installation, aucun téléchargement de données, aucune authentification.
 
-> Ce dépôt est la fiche publique du serveur (documentation et `server.json`).
-> Le code source vit dans le monorepo [André](https://andre.vote), dont
-> l'extraction en paquet autonome est en cours — voir
-> [Installation locale](#installation-locale).
+> Ce dépôt contient le code du serveur MCP, publié sous licence MIT. Il est un
+> **miroir automatique** de `andre-mcp/` dans le monorepo André, qui reste la
+> source de vérité : les contributions passent par des issues ici, pas par des
+> commits directs (ils seraient écrasés au prochain miroitage).
 
 ## Connexion
 
@@ -152,11 +152,30 @@ Garde-fous en place :
   d'erreur, concurrence). Ni les arguments, ni les résultats, ni les
   identifiants de session ne sont exposés.
 
-## Installation locale
+## Exécution locale
 
-Pas encore disponible. Le serveur délègue ses requêtes à des scripts qui vivent
-encore dans le monorepo André ; un paquet PyPI autonome est en préparation.
-En attendant, utilisez le serveur distant.
+Le serveur **démarre et répond à l'introspection** (`tools/list`,
+`resources/list`, `prompts/list`) sans aucune donnée :
+
+```bash
+pip install .
+python -c "from andre_mcp.server import run; run()"
+```
+
+ou via Docker :
+
+```bash
+docker build -t andre-mcp .
+docker run -i --rm andre-mcp
+```
+
+En revanche, **les appels d'outils ne fonctionnent pas encore hors du
+monorepo** : le serveur délègue ses requêtes à des scripts (`query_elections.py`,
+`query_admin.py`, `generate_map.py`…) qui n'ont pas encore été versés dans le
+paquet, et le jeu de données complet (~1,5 Go) doit être provisionné. Un paquet
+PyPI autonome est en préparation.
+
+Pour un usage réel, connectez-vous au [serveur distant](#connexion).
 
 ## Registre
 
