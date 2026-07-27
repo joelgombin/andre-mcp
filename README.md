@@ -1,5 +1,7 @@
 # André MCP — Analyse électorale française
 
+[![andre-mcp MCP server](https://glama.ai/mcp/servers/joelgombin/andre-mcp/badges/score.svg)](https://glama.ai/mcp/servers/joelgombin/andre-mcp)
+
 Serveur MCP (Model Context Protocol) donnant accès aux résultats de **55 élections
 françaises (1999-2026) au niveau du bureau de vote**, croisés avec les données
 socio-démographiques de l'INSEE, la base des élus de la République et les
