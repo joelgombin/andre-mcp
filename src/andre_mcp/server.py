@@ -1587,6 +1587,171 @@ LANDING_HTML = """\
 """
 
 
+NOT_FOUND_HTML = """\
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Page introuvable — André MCP</title>
+    <link rel="icon" href="https://andre.vote/img/andre.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(to bottom, #f9fafb, #ffffff);
+            color: #171717;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 2rem 1.5rem;
+        }
+        .wrap { max-width: 560px; width: 100%; text-align: center; }
+        .portrait {
+            width: 160px; height: 160px; border-radius: 50%; object-fit: cover;
+            object-position: top; border: 1px solid #e5e7eb; background: #ffffff;
+            animation: sigh 5s ease-in-out infinite;
+        }
+        @keyframes sigh {
+            0%, 100% { transform: rotate(-3deg) translateY(0); }
+            50%      { transform: rotate(-3deg) translateY(4px); }
+        }
+        @media (prefers-reduced-motion: reduce) { .portrait { animation: none; } }
+        .kicker {
+            margin-top: 1.5rem; font-size: 0.8rem; font-weight: 600;
+            letter-spacing: 0.05em; text-transform: uppercase; color: #2563eb;
+        }
+        h1 { font-size: 1.8rem; font-weight: 700; color: #111827; margin-top: 0.5rem; line-height: 1.2; }
+        .lede { color: #4b5563; margin-top: 1rem; }
+        .pv {
+            margin-top: 2rem; text-align: left;
+            background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px;
+            padding: 1rem 1.25rem;
+            font-family: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+            font-size: 0.85rem;
+        }
+        .pv-row {
+            display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+            padding: 0.35rem 0; border-bottom: 1px dashed #e5e7eb;
+        }
+        .pv-row:last-child { border-bottom: none; }
+        .pv-label { color: #4b5563; }
+        .pv-value { color: #111827; font-weight: 600; white-space: nowrap; }
+        .signature { margin-top: 0.75rem; font-size: 0.78rem; font-style: italic; color: #6b7280; }
+        .actions { margin-top: 2rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+        .btn {
+            display: inline-flex; align-items: center;
+            padding: 0.55rem 1.1rem; border-radius: 8px;
+            font-size: 0.9rem; font-weight: 600; text-decoration: none;
+        }
+        .btn-primary { background: #2563eb; color: #ffffff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { border: 1px solid #d1d5db; color: #374151; }
+        .btn-secondary:hover { background: #f3f4f6; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <img src="https://andre.vote/img/andre-triste.png"
+             alt="André, l'air dépité, une larme à l'œil" class="portrait">
+
+        <p class="kicker">Erreur 404 — procès-verbal de carence</p>
+        <h1>Dépouillement terminé : aucun résultat</h1>
+        <p class="lede">
+            Cette adresse n'existe pas sur le serveur MCP d'André. L'urne a été
+            retournée, secouée, puis retournée à nouveau : rien.
+        </p>
+
+        <div class="pv">
+            <div class="pv-row"><span class="pv-label">Inscrits</span><span class="pv-value">0</span></div>
+            <div class="pv-row"><span class="pv-label">Votants</span><span class="pv-value">0</span></div>
+            <div class="pv-row"><span class="pv-label">Bulletins blancs et nuls</span><span class="pv-value">1 (celui-ci)</span></div>
+            <div class="pv-row"><span class="pv-label">Suffrages exprimés</span><span class="pv-value">0</span></div>
+            <div class="pv-row"><span class="pv-label">Participation</span><span class="pv-value">0,00 %</span></div>
+        </div>
+        <p class="signature">
+            Fait et clos par André, scrutateur — aucune réclamation n'a été
+            consignée, faute de votant.
+        </p>
+
+        <div class="actions">
+            <a class="btn btn-primary" href="/">Connecter André à Claude</a>
+            <a class="btn btn-secondary" href="https://andre.vote">Aller sur andre.vote</a>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+
+def _wants_html(request: Any) -> bool:
+    """Vrai si le client demande explicitement du HTML (navigateur).
+
+    L'en-tête `Accept` est parsé avec ses facteurs de qualité, du type le plus
+    spécifique au plus général : `text/html` l'emporte sur `text/*`, et une
+    qualité nulle (`text/html;q=0`) vaut refus même si la chaîne apparaît dans
+    l'en-tête. Le joker `*/*` seul ne suffit pas : c'est ce qu'envoient curl et
+    la plupart des clients machine, qui doivent garder la réponse texte.
+    """
+    quality_by_type: dict[str, float] = {}
+
+    for part in request.headers.get("accept", "").lower().split(","):
+        segments = part.split(";")
+        media_type = segments[0].strip()
+        if media_type not in ("text/html", "text/*"):
+            continue
+
+        quality = 1.0
+        for param in segments[1:]:
+            key, _, value = param.partition("=")
+            if key.strip() == "q":
+                try:
+                    quality = float(value.strip())
+                except ValueError:
+                    quality = 0.0
+                break
+
+        # Le premier passage fait foi si le type est répété.
+        quality_by_type.setdefault(media_type, quality)
+
+    for media_type in ("text/html", "text/*"):
+        if media_type in quality_by_type:
+            return quality_by_type[media_type] > 0
+
+    return False
+
+
+async def _not_found(request: Any, _exc: Any) -> Response:
+    """404 négociée : page HTML pour les humains, texte brut pour les machines.
+
+    Le domaine sert à la fois le protocole MCP (clients machine) et une landing
+    HTML. Les clients MCP conservent exactement la réponse historique de
+    Starlette (`text/plain` + « Not Found ») ; seuls les navigateurs reçoivent
+    le procès-verbal de carence.
+    """
+    from starlette.responses import HTMLResponse, PlainTextResponse
+
+    if _wants_html(request):
+        return HTMLResponse(NOT_FOUND_HTML, status_code=404)
+    return PlainTextResponse("Not Found", status_code=404)
+
+
+def build_http_app(server: FastMCP | None = None):
+    """Construit l'app Starlette du serveur MCP, 404 personnalisée comprise.
+
+    Extrait de `run_http()` pour être testable sans démarrer uvicorn.
+
+    Args:
+        server: Instance FastMCP déjà configurée (host/port/sécurité transport).
+            Par défaut, un serveur neuf est créé.
+    """
+    app = (server or create_server()).streamable_http_app()
+    app.add_exception_handler(404, _not_found)
+    return app
+
+
+
 # Point d'entrée pour stdio
 def run():
     """Lance le serveur MCP en mode stdio."""
@@ -1632,4 +1797,13 @@ def run_http(host: str = "0.0.0.0", port: int = 8080):
             enable_dns_rebinding_protection=False,
         )
 
-    server.run(transport="streamable-http")
+    # On construit l'app nous-mêmes (au lieu de server.run) pour y brancher la
+    # 404 personnalisée, puis on lance uvicorn comme le fait le SDK.
+    import uvicorn
+
+    uvicorn.run(
+        build_http_app(server),
+        host=host,
+        port=port,
+        log_level=server.settings.log_level.lower(),
+    )
