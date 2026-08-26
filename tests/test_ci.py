@@ -482,6 +482,16 @@ def test_dockerfiles_install_from_lock(results: TestResult):
             assert "uv sync --locked" in content, (
                 f"{rel} : l'installation doit passer par `uv sync --locked`"
             )
+            # Le venv doit rester hors de /app : le `chown -R appuser:appuser /app`
+            # recopie sinon tout le venv dans une couche supplémentaire (+1,1 Go).
+            if "chown -R appuser:appuser /app" in content:
+                assert "UV_PROJECT_ENVIRONMENT=/opt/venv" in content, (
+                    f"{rel} : venv sous /app alors qu'un `chown -R /app` suit "
+                    "(poser UV_PROJECT_ENVIRONMENT=/opt/venv)"
+                )
+                assert "/app/.venv" not in content, (
+                    f"{rel} : référence résiduelle à /app/.venv"
+                )
         results.add("Dockerfiles install depuis le lock", True)
     except AssertionError as e:
         results.add("Dockerfiles install depuis le lock", False, str(e))
