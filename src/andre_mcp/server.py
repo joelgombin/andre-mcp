@@ -285,6 +285,7 @@ def create_server() -> FastMCP:
     # ==========================================
 
     _register_metrics_route(mcp)
+    _register_health_route(mcp)
 
     return mcp
 
@@ -1304,6 +1305,32 @@ def _register_metrics_route(mcp: FastMCP) -> None:
         return Response(
             content=generate_latest(),
             headers={"Content-Type": CONTENT_TYPE_LATEST},
+        )
+
+
+def _register_health_route(mcp: FastMCP) -> None:
+    """Expose un health check sur GET /health.
+
+    Le transport Streamable HTTP répond 406 à un GET sur /mcp : ce code sort du
+    reverse proxy et ne prouve pas que le processus Python tourne (faux vert du
+    2026-08-26, conteneur en boucle de crash sur un ModuleNotFoundError).
+    Cette route, elle, n'est servie que si l'application MCP a démarré, et
+    expose le SHA du commit pour que le health check CI distingue la nouvelle
+    image de l'ancienne (cf. scripts/ci/wait_for_version.sh).
+    """
+    from starlette.responses import JSONResponse
+
+    from andre_mcp.build_info import git_sha
+
+    @mcp.custom_route("/health", methods=["GET"])
+    async def health(_request: Any) -> Response:
+        return JSONResponse(
+            {
+                "status": "ok",
+                "service": "andre-mcp",
+                "version": __version__,
+                "git_sha": git_sha(),
+            }
         )
 
 
