@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 dependencies = [
-    "mcp>=1.20",
+    # <2 : mcp 2.x a supprimé `mcp.server.fastmcp` (renommé en MCPServer)
+    "mcp>=1.20,<2",
     "duckdb>=1.4",
     "pandas>=2.0",
     "pyarrow>=15.0",

@@ -431,6 +431,64 @@ def test_create_data_table_tool(results: TestResult):
         results.add("create_data_table", False, str(e)[:200])
 
 
+def test_mcp_pin_below_v2(results: TestResult):
+    """Régression : mcp 2.x supprime `mcp.server.fastmcp` (renommé MCPServer).
+
+    Les Dockerfiles installent les dépendances depuis les pyproject.toml
+    (résolution fraîche, hors uv.lock) : sans borne haute, le build embarque
+    mcp 2.x et le serveur MCP crashe au démarrage avec
+    ModuleNotFoundError: No module named 'mcp.server.fastmcp'.
+    """
+    import re
+
+    root = Path(__file__).parent.parent.parent
+    try:
+        for rel in ("pyproject.toml", "andre-mcp/pyproject.toml"):
+            content = (root / rel).read_text()
+            specs = re.findall(r'"mcp((?:[<>=!~,][^"]*)?)"', content)
+            assert specs, f"{rel} : aucune contrainte explicite sur `mcp`"
+            for spec in specs:
+                assert "<2" in spec, f"{rel} : `mcp{spec}` doit borner en dessous de 2.0"
+
+        # L'API v1 utilisée par server.py doit rester importable
+        from mcp.server.fastmcp import FastMCP  # noqa: F401
+
+        results.add("Pin mcp<2", True)
+    except AssertionError as e:
+        results.add("Pin mcp<2", False, str(e))
+    except Exception as e:
+        results.add("Pin mcp<2", False, f"{type(e).__name__}: {str(e)[:200]}")
+
+
+def test_dockerfiles_install_from_lock(results: TestResult):
+    """Régression : les images doivent installer depuis uv.lock, pas résoudre à neuf.
+
+    `uv pip install -r pyproject.toml` fait une résolution fraîche à chaque
+    build : l'image devient une fonction de la date du build et non du commit.
+    C'est ce qui a fait basculer la prod sur mcp 2.x (77 des 127 paquets
+    divergeaient du lock, dont 8 sauts de version majeure).
+    """
+    root = Path(__file__).parent.parent.parent
+    try:
+        for rel in ("Dockerfile", "andre-mcp/Dockerfile"):
+            # Ignorer les commentaires : ils citent légitimement l'ancienne commande
+            content = "\n".join(
+                line for line in (root / rel).read_text().splitlines()
+                if not line.lstrip().startswith("#")
+            )
+            assert "-r pyproject.toml" not in content, (
+                f"{rel} : résolution fraîche des dépendances (utiliser uv sync --locked)"
+            )
+            assert "uv sync --locked" in content, (
+                f"{rel} : l'installation doit passer par `uv sync --locked`"
+            )
+        results.add("Dockerfiles install depuis le lock", True)
+    except AssertionError as e:
+        results.add("Dockerfiles install depuis le lock", False, str(e))
+    except Exception as e:
+        results.add("Dockerfiles install depuis le lock", False, f"{type(e).__name__}: {str(e)[:200]}")
+
+
 def main():
     print("=" * 60)
     print("Tests CI — andre-mcp")
@@ -443,6 +501,8 @@ def main():
     results = TestResult()
 
     # Unitaires (toujours)
+    test_mcp_pin_below_v2(results)
+    test_dockerfiles_install_from_lock(results)
     test_package_imports(results)
     test_config_env_override(results)
     test_server_structure(results)
