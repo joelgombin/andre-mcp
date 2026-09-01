@@ -880,14 +880,27 @@ def _register_tools(mcp: FastMCP) -> None:
         y: str | None = None,
         color: str | None = None,
         title: str | None = None,
+        subtitle: str | None = None,
+        y2: str | None = None,
+        source: str | None = None,
+        target: str | None = None,
+        values: str | None = None,
+        z: str | None = None,
+        path: list[str] | None = None,
+        reference_line: dict | None = None,
     ) -> str:
         """Crée une visualisation Plotly (retourne le spec JSON).
 
         Deux modes :
         - Spec libre : fournir 'spec' (dict Plotly complet {data, layout})
-        - Assisté : fournir chart_type + data + x + y
+        - Assisté : fournir chart_type + data + mappings
 
-        Types supportés : bar, line, scatter, histogram, box, violin, heatmap, treemap.
+        Types supportés : bar, line, scatter, histogram, box, violin, heatmap,
+        treemap, grouped_bar, stacked_bar, dumbbell, diverging_bar,
+        dual_axis (x + y + y2), sankey (source + target + values),
+        hemicycle (x=groupe, y=sièges).
+        Paramètres transversaux : subtitle (sous-titre technique),
+        reference_line ({value, label, orientation}) pour un seuil/référence.
         """
         import json as json_mod
 
@@ -905,19 +918,89 @@ def _register_tools(mcp: FastMCP) -> None:
                 return f"Erreur : fichier introuvable : {data_file}"
             data = json_mod.loads(p.read_text(encoding="utf-8"))
 
-        # Construire un spec Plotly simplifié
-        plotly_spec = {
-            "data": [{"type": chart_type, "x": [], "y": []}],
-            "layout": {"title": title or ""},
-        }
-        if data and x and y:
-            plotly_spec["data"][0]["x"] = [row.get(x) for row in data]
-            plotly_spec["data"][0]["y"] = [row.get(y) for row in data]
-            if color:
-                plotly_spec["data"][0]["marker"] = {
-                    "color": [row.get(color) for row in data]
-                }
+        # Déléguer à lib.dataviz (même moteur que l'API André : archétypes,
+        # style Tufte, formatage FR) quand le repo et plotly sont présents —
+        # l'image Docker copie tout le repo, donc c'est le cas nominal.
+        try:
+            import inspect as _inspect
 
+            import pandas as _pd
+
+            from lib.dataviz import CHART_BUILDERS
+
+            builder = CHART_BUILDERS.get(chart_type)
+            if builder is None:
+                return (f"Erreur : chart_type '{chart_type}' inconnu. "
+                        f"Types : {', '.join(sorted(CHART_BUILDERS))}.")
+            kwargs = {"title": title or ""}
+            candidates = {"x": x, "y": y, "color": color, "subtitle": subtitle,
+                          "y2": y2, "source": source, "target": target,
+                          "values": values, "z": z, "path": path,
+                          "reference_line": reference_line}
+            accepted = set(_inspect.signature(builder).parameters)
+            kwargs.update({k: v for k, v in candidates.items()
+                           if v is not None and k in accepted})
+            fig = builder(_pd.DataFrame(data), **kwargs)
+            fig_json = json_mod.loads(fig.to_json())
+            return json_mod.dumps(
+                {"data": fig_json.get("data", []),
+                 "layout": fig_json.get("layout", {})},
+                ensure_ascii=False, indent=2)
+        except ImportError:
+            pass  # environnement sans lib/ ou sans plotly → spec simplifié
+
+        # Fallback : spec Plotly simplifié (sans style ni archétypes).
+        # Seuls les types dont une trace {type, x, y} est un spec Plotly
+        # VALIDE sont générés ici : les archétypes composés, mais aussi
+        # heatmap (exige z) et treemap (exige labels/parents), sont rejetés
+        # avec une erreur claire — mieux qu'un spec que le client ne saura
+        # pas rendre. 'line' n'est pas un type de trace Plotly : il est
+        # traduit en scatter mode lines.
+        _fallback_types = {"bar", "line", "scatter", "histogram", "box",
+                           "violin"}
+        if chart_type not in _fallback_types:
+            return (f"Erreur : chart_type '{chart_type}' nécessite le moteur "
+                    "lib.dataviz (plotly), indisponible dans cet environnement. "
+                    f"Types utilisables ici : {', '.join(sorted(_fallback_types))}.")
+
+        # Mappings requis par type : histogram n'exige que x, box/violin au
+        # moins un des deux axes, les autres exigent x ET y.
+        if chart_type == "histogram":
+            if not x:
+                return "Erreur : 'x' est requis pour un histogram."
+        elif chart_type in ("box", "violin"):
+            if not (x or y):
+                return f"Erreur : 'x' ou 'y' est requis pour un {chart_type}."
+        elif not (x and y):
+            return f"Erreur : 'x' et 'y' sont requis pour un {chart_type}."
+        if not data:
+            return "Erreur : données vides."
+
+        trace_type = "scatter" if chart_type == "line" else chart_type
+        trace_extra = {"mode": "lines+markers"} if chart_type == "line" else {}
+
+        def _make_trace(rows, name=None):
+            t: dict = {"type": trace_type, **trace_extra}
+            if name is not None:
+                t["name"] = str(name)
+            if x:
+                t["x"] = [row.get(x) for row in rows]
+            if y:
+                t["y"] = [row.get(y) for row in rows]
+            return t
+
+        # `color` est une colonne de REGROUPEMENT catégoriel, pas des couleurs
+        # littérales : une trace nommée par groupe (le client applique sa
+        # palette), jamais row[color] dans marker.color.
+        if color:
+            groups: dict = {}
+            for row in data:
+                groups.setdefault(row.get(color), []).append(row)
+            traces = [_make_trace(rows, name=g) for g, rows in groups.items()]
+        else:
+            traces = [_make_trace(data)]
+
+        plotly_spec = {"data": traces, "layout": {"title": title or ""}}
         return json_mod.dumps(plotly_spec, ensure_ascii=False, indent=2)
 
     @mcp.tool(
