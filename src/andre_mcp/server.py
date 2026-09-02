@@ -365,7 +365,10 @@ def _register_tools(mcp: FastMCP) -> None:
           commune_metric/condition nécessitent election_id).
         - cross_election_panel : évolution d'un sujet (famille ou nuance_code) par
           commune sur N scrutins (elections=ids séparés par des virgules + scope
-          commune_code/departement_code/region_code/commune_codes).
+          optionnel commune_code/departement_code/region_code/commune_codes ;
+          SANS scope = national, panel complet en data_file). Renvoie aussi
+          « ensemble » : score du périmètre entier par scrutin + delta, pondéré
+          par les exprimés — ne pas boucler par département.
         - bureau_breakdown : pivot par bureau (top_n nuances/blocs + participation,
           with_sociodem optionnel) pour commune_code + election_id.
         """
