@@ -887,6 +887,10 @@ def _register_tools(mcp: FastMCP) -> None:
         values: str | None = None,
         z: str | None = None,
         path: list[str] | None = None,
+        a: str | None = None,
+        b: str | None = None,
+        c: str | None = None,
+        size: str | None = None,
         reference_line: dict | None = None,
     ) -> str:
         """Crée une visualisation Plotly (retourne le spec JSON).
@@ -898,7 +902,7 @@ def _register_tools(mcp: FastMCP) -> None:
         Types supportés : bar, line, scatter, histogram, box, violin, heatmap,
         treemap, grouped_bar, stacked_bar, dumbbell, diverging_bar,
         dual_axis (x + y + y2), sankey (source + target + values),
-        hemicycle (x=groupe, y=sièges).
+        hemicycle (x=groupe, y=sièges), ternary (a + b + c = trois parts).
         Paramètres transversaux : subtitle (sous-titre technique),
         reference_line ({value, label, orientation}) pour un seuil/référence.
         """
@@ -936,6 +940,7 @@ def _register_tools(mcp: FastMCP) -> None:
             candidates = {"x": x, "y": y, "color": color, "subtitle": subtitle,
                           "y2": y2, "source": source, "target": target,
                           "values": values, "z": z, "path": path,
+                          "a": a, "b": b, "c": c, "size": size,
                           "reference_line": reference_line}
             accepted = set(_inspect.signature(builder).parameters)
             kwargs.update({k: v for k, v in candidates.items()
