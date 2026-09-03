@@ -336,6 +336,7 @@ def _register_tools(mcp: FastMCP) -> None:
         population_min: int | None = None,
         population_max: int | None = None,
         commune_metric: str | None = None,
+        group_by: str | None = None,
         condition: str | None = None,
         sort_by: str | None = None,
         top_n: int | None = None,
@@ -362,13 +363,19 @@ def _register_tools(mcp: FastMCP) -> None:
         - select_communes : sélectionne/classe des communes par critères géo +
           population + électoraux (region_code/departement_code/epci/commune_codes,
           population_min/max, commune_metric, condition, sort_by, limit, order ;
-          commune_metric/condition nécessitent election_id).
+          commune_metric/condition nécessitent election_id). commune_metric accepte
+          PLUSIEURS métriques séparées par des virgules — une colonne chacune, en
+          un seul appel ; condition et sort_by portent alors sur la première.
         - cross_election_panel : évolution d'un sujet (famille ou nuance_code) par
           commune sur N scrutins (elections=ids séparés par des virgules + scope
           optionnel commune_code/departement_code/region_code/commune_codes ;
           SANS scope = national, panel complet en data_file). Renvoie aussi
           « ensemble » : score du périmètre entier par scrutin + delta, pondéré
-          par les exprimés — ne pas boucler par département.
+          par les exprimés — ne pas boucler par département. famille et nuance_code
+          acceptent PLUSIEURS sujets séparés par des virgules ('Gauche,Droite') :
+          tous en un appel, agrégats dans « ensembles ». group_by='region'|
+          'departement' ajoute un agrégat pondéré PAR MAILLE dans le même appel —
+          ne jamais boucler un appel par région.
         - bureau_breakdown : pivot par bureau (top_n nuances/blocs + participation,
           with_sociodem optionnel) pour commune_code + election_id.
         """
@@ -462,6 +469,8 @@ def _register_tools(mcp: FastMCP) -> None:
                 panel_args.extend(["--famille", famille])
             if nuance_code:
                 panel_args.extend(["--nuance", nuance_code])
+            if group_by:
+                panel_args.extend(["--group-by", group_by])
             return _run_script("query_elections.py", panel_args)
 
         if action == "bureau_breakdown":
