@@ -87,6 +87,10 @@ _BUSY_MESSAGE = (
 #     dans un DataFrame pandas (saturation mémoire/CPU).
 _SQL_ROW_CAP = int(os.environ.get("ANDRE_MCP_SQL_ROW_CAP", "5000"))
 
+# Valeurs de --metric acceptées par generate_map.py (à garder synchronisées
+# avec l'argparse du script et l'enum du mode haut niveau de main.py).
+_MAP_METRICS = ("family", "nuance", "abstention", "participation")
+
 
 def _log_usage(tool: str, client: str, status: str, start: float) -> None:
     """Émet une ligne de log d'usage sans argument ni contenu utilisateur."""
@@ -766,7 +770,10 @@ def _register_tools(mcp: FastMCP) -> None:
 
         Paramètres :
         - election_id : identifiant élection (ex: '2024_legi_t1', '2020_muni_t2')
-        - metric : 'family' (famille politique en tête) ou 'nuance' (score d'une nuance)
+        - metric : 'family' (famille politique en tête), 'nuance' (score d'une nuance),
+          'abstention' (abstentions / inscrits) ou 'participation' (votants / inscrits).
+          Abstention et participation sont en % des inscrits ; au-dessus du bureau,
+          somme des abstentions (ou votants) sur la somme des inscrits.
         - geography : 'bv' (bureau de vote, défaut) ou 'commune' (carte nationale)
         - department : code département (ex: '13'). Requis pour geography='bv' sauf si commune fourni.
         - commune : code commune (ex: '13055' pour Marseille). Centre la carte sur cette commune.
@@ -777,7 +784,12 @@ def _register_tools(mcp: FastMCP) -> None:
         - Carte par famille, Bouches-du-Rhône : election_id='2024_legi_t1', department='13'
         - Carte score RN, Marseille : election_id='2024_legi_t1', commune='13055', metric='nuance', nuance='RN'
         - Carte nationale : election_id='2024_euro_t1', geography='commune'
+        - Carte d'abstention, Marseille : election_id='2024_legi_t1', commune='13055', metric='abstention'
+        - Participation par commune, Bouches-du-Rhône : election_id='2024_legi_t1', geography='commune', department='13', metric='participation'
         """
+        if metric not in _MAP_METRICS:
+            return (f"Erreur : metric inconnue '{metric}'. "
+                    f"Valeurs possibles : {', '.join(_MAP_METRICS)}.")
         args = ["--election", election_id, "--metric", metric, "--geography", geography]
         if department:
             args.extend(["--department", department])
@@ -1360,6 +1372,7 @@ def _register_prompts(mcp: FastMCP) -> None:
             "PARAMÈTRES generate_map :\n"
             "- metric='family' : carte de la famille politique en tête par bureau\n"
             "- metric='nuance', nuance='RN' : carte du score d'une nuance spécifique\n"
+            "- metric='abstention' ou 'participation' : taux en % des inscrits\n"
             "- geography='bv' (défaut) ou 'commune' (carte nationale)"
         )
 

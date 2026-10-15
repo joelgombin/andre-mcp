@@ -104,6 +104,48 @@ def test_generate_map_commune(results: TestResult):
         results.add("generate_map Marseille", False, str(e)[:200])
 
 
+def test_generate_map_abstention(results: TestResult):
+    """generate_map metric='abstention' — le cas qui échouait via le connecteur public."""
+    print("\n[2b] generate_map — carte d'abstention Marseille...")
+    try:
+        import json
+        from andre_mcp.server import create_server
+        server = create_server()
+
+        text = _call_tool(server, "generate_map", {
+            "election_id": "2024_legi_t1",
+            "commune": "13055",
+            "metric": "abstention",
+        })
+        assert "invalid choice" not in text.lower(), f"metric refusée : {text[:300]}"
+        payload = json.loads(text)
+        assert "error" not in payload, payload.get("error")
+        assert "Abstention" in payload["title"], payload["title"]
+        assert payload["spec"]["legend"]["type"] == "sequential"
+        assert payload.get("map_image"), "pas d'image générée"
+        results.add("generate_map abstention", True, payload["map_image"])
+    except Exception as e:
+        results.add("generate_map abstention", False, str(e)[:200])
+
+
+def test_generate_map_unknown_metric(results: TestResult):
+    """Une metric inconnue renvoie la liste des valeurs possibles, pas une trace argparse."""
+    print("\n[2c] generate_map — metric inconnue...")
+    try:
+        from andre_mcp.server import create_server
+        server = create_server()
+
+        text = _call_tool(server, "generate_map", {
+            "election_id": "2024_legi_t1",
+            "commune": "13055",
+            "metric": "taux_abstention",
+        })
+        assert "abstention" in text and "participation" in text, text[:300]
+        results.add("generate_map metric inconnue", True)
+    except Exception as e:
+        results.add("generate_map metric inconnue", False, str(e)[:200])
+
+
 def test_query_elections_bad_action(results: TestResult):
     """query_elections avec une action invalide doit retourner un message clair."""
     print("\n[3] query_elections — action invalide...")
@@ -227,6 +269,8 @@ def main():
     results = TestResult()
     test_generate_map_basic(results)
     test_generate_map_commune(results)
+    test_generate_map_abstention(results)
+    test_generate_map_unknown_metric(results)
     test_query_elections_bad_action(results)
     test_query_elections_with_commune_name(results)
     test_query_sociodem_profile(results)
