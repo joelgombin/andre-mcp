@@ -946,6 +946,20 @@ def _register_tools(mcp: FastMCP) -> None:
                 return f"Erreur : fichier introuvable : {data_file}"
             data = json_mod.loads(p.read_text(encoding="utf-8"))
 
+        # Garde famille ≠ parti (même règle que l'API, cf. lib/title_check.py) :
+        # refuse « le RN à 38 % » sur des données agrégées par famille.
+        try:
+            import pandas as _pd_tc
+
+            from lib.title_check import check_family_party_title
+
+            title_error = check_family_party_title(
+                _pd_tc.DataFrame(data), title, subtitle)
+            if title_error:
+                return title_error
+        except ImportError:
+            pass  # environnement sans lib/ → pas de garde
+
         # Déléguer à lib.dataviz (même moteur que l'API André : archétypes,
         # style Tufte, formatage FR) quand le repo et plotly sont présents —
         # l'image Docker copie tout le repo, donc c'est le cas nominal.

@@ -400,6 +400,42 @@ def test_visualize_tool(results: TestResult):
         results.add("visualize", False, str(e)[:200])
 
 
+def test_visualize_family_party_title(results: TestResult):
+    """Données par famille + titre « le RN à 38 % » → refus (bug session 4d8ebdcb)."""
+    print("\n[11b] visualize refuse un parti dans le titre d'un graphique par famille...")
+    # lib/ (racine du repo) est importable en prod (WORKDIR /app) : idem ici.
+    repo_root = str(Path(__file__).resolve().parents[2])
+    if repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    try:
+        from andre_mcp.server import create_server
+        server = create_server()
+
+        async def call():
+            result = await server.call_tool("visualize", {
+                "chart_type": "bar",
+                "data": [
+                    {"famille": "Gauche", "pct": 44.5},
+                    {"famille": "Extrême droite", "pct": 37.9},
+                    {"famille": "Centre", "pct": 10.3},
+                ],
+                "x": "famille", "y": "pct",
+                "title": "La gauche en tête, le RN à 38 %",
+            })
+            first = result[0]
+            if hasattr(first, "text"):
+                return first.text
+            if isinstance(first, list) and first and hasattr(first[0], "text"):
+                return first[0].text
+            return str(first)
+
+        text = asyncio.run(call())
+        assert "titre refusé" in text, f"titre fautif accepté : {text[:120]}"
+        results.add("visualize famille ≠ parti", True)
+    except Exception as e:
+        results.add("visualize famille ≠ parti", False, str(e)[:200])
+
+
 def test_create_data_table_tool(results: TestResult):
     """L'outil create_data_table formate un tableau."""
     print("\n[12] create_data_table (pas de données requises)...")
@@ -526,6 +562,7 @@ def main():
     test_fixture_db_queries(results)
     test_fixture_query_sql_tool(results)
     test_visualize_tool(results)
+    test_visualize_family_party_title(results)
     test_create_data_table_tool(results)
 
     success = results.print_summary()
