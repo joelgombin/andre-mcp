@@ -918,6 +918,7 @@ def _register_tools(mcp: FastMCP) -> None:
         c: str | None = None,
         size: str | None = None,
         reference_line: dict | None = None,
+        sample_size: str | None = None,
     ) -> str:
         """Crée une visualisation Plotly (retourne le spec JSON).
 
@@ -931,6 +932,8 @@ def _register_tools(mcp: FastMCP) -> None:
         hemicycle (x=groupe, y=sièges), ternary (a + b + c = trois parts).
         Paramètres transversaux : subtitle (sous-titre technique),
         reference_line ({value, label, orientation}) pour un seuil/référence.
+        sample_size (bar) : colonne d'effectif (inscrits, nombre de bureaux)
+        affichée « n = … » sous chaque catégorie.
         """
         import json as json_mod
 
@@ -981,7 +984,8 @@ def _register_tools(mcp: FastMCP) -> None:
                           "y2": y2, "source": source, "target": target,
                           "values": values, "z": z, "path": path,
                           "a": a, "b": b, "c": c, "size": size,
-                          "reference_line": reference_line}
+                          "reference_line": reference_line,
+                          "sample_size": sample_size}
             accepted = set(_inspect.signature(builder).parameters)
             kwargs.update({k: v for k, v in candidates.items()
                            if v is not None and k in accepted})
