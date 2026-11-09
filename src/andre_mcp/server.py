@@ -232,7 +232,9 @@ def _run_script(script_name: str, args: list[str]) -> str:
 
     cmd = [sys.executable, str(script_path)] + args
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        # Threads DuckDB bornés dans le script (cf. duckdb_config.py à la racine)
+        env = {**os.environ, "DUCKDB_THREADS": os.environ.get("AGENT_DUCKDB_THREADS") or "4"}
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, env=env)
     except subprocess.TimeoutExpired:
         return f"Erreur : le script {script_name} a dépassé le timeout (120s)."
     finally:

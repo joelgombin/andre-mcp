@@ -163,6 +163,29 @@ def test_list_elections_query(results: TestResult):
         results.add("Requête elections_disponibles", False, str(e))
 
 
+def test_threads_bornes(results: TestResult):
+    """La connexion borne les threads DuckDB (DUCKDB_THREADS, défaut 4)."""
+    print("\n[6] Threads DuckDB bornés...")
+    if not PROJECT_DB.exists():
+        results.add("Threads DuckDB bornés", False, skipped=True,
+                     message=f"DB introuvable: {PROJECT_DB}")
+        return
+    old = os.environ.pop("DUCKDB_THREADS", None)
+    try:
+        from andre_mcp.db import close_connection, get_connection
+
+        close_connection()
+        con = get_connection(db_path=PROJECT_DB)
+        threads = int(con.execute("SELECT current_setting('threads')").fetchone()[0])
+        assert threads == 4, f"threads={threads}, attendu 4"
+        results.add("Threads DuckDB bornés", True)
+    except Exception as e:
+        results.add("Threads DuckDB bornés", False, str(e))
+    finally:
+        if old is not None:
+            os.environ["DUCKDB_THREADS"] = old
+
+
 def main():
     print("=" * 60)
     print("Tests db — andre-mcp")
@@ -174,6 +197,7 @@ def main():
     test_invalid_path_raises_error(results)
     test_close_connection(results)
     test_list_elections_query(results)
+    test_threads_bornes(results)
 
     success = results.print_summary()
     return 0 if success else 1

@@ -1,5 +1,6 @@
 """Gestion de la connexion DuckDB partagée."""
 
+import os
 from pathlib import Path
 
 import duckdb
@@ -51,6 +52,14 @@ def get_connection(
             pass
 
     _connection = duckdb.connect(str(db_path), read_only=True)
+    # Borne les threads (défaut 4) : sans elle, chaque requête prend tous les
+    # cœurs du serveur partagé. Même défaut que les scripts de l'agent
+    # (duckdb_config.py à la racine).
+    try:
+        threads = int(os.environ.get("DUCKDB_THREADS", ""))
+    except ValueError:
+        threads = 0
+    _connection.execute(f"SET threads = {threads if threads > 0 else 4}")
     _current_path = db_path
 
     if load_spatial:
